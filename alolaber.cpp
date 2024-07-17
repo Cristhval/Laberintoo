@@ -8,7 +8,7 @@
 
 using namespace std;
 
-// Función para limpiar la pantalla
+// Funcion para limpiar la pantalla
 void limpiarPantalla() {
 #ifdef _WIN32
     system("cls");
@@ -17,28 +17,40 @@ void limpiarPantalla() {
 #endif
 }
 
-// Función para imprimir el laberinto
-void imprimirLaberinto(const vector<vector<int>>& laberinto, const vector<pair<int, int>>& camino) {
-    vector<vector<int>> laberintoConCamino = laberinto;
+// Funcion para imprimir el laberinto
+void imprimirLaberinto(int** laberinto, int filas, int columnas, const vector<pair<int, int>>& camino) {
+    int** laberintoConCamino = new int*[filas];
+    for (int i = 0; i < filas; ++i) {
+        laberintoConCamino[i] = new int[columnas];
+        for (int j = 0; j < columnas; ++j) {
+            laberintoConCamino[i][j] = laberinto[i][j];
+        }
+    }
+    
     for (const auto& paso : camino) {
         laberintoConCamino[paso.first][paso.second] = 2; // Marcar el camino
     }
 
-    for (const auto& fila : laberintoConCamino) {
-        for (const auto& celda : fila) {
-            if (celda == 1)
-                cout << "|"; // Paredes
-            else if (celda == 2)
-                cout << "*"; // Camino encontrado
+    for (int i = 0; i < filas; ++i) {
+        for (int j = 0; j < columnas; ++j) {
+            if (laberintoConCamino[i][j] == 1)
+                printf("|"); // Paredes
+            else if (laberintoConCamino[i][j] == 2)
+                printf("*"); // Camino encontrado
             else
-                cout << " "; // Caminos
+                printf(" "); // Caminos
         }
-        cout << endl;
+        printf("\n");
     }
+    
+    for (int i = 0; i < filas; ++i) {
+        delete[] laberintoConCamino[i];
+    }
+    delete[] laberintoConCamino;
 }
 
-// Función auxiliar para realizar DFS y asegurar un camino válido
-void dfs(vector<vector<int>>& laberinto, int x, int y) {
+// Funcion auxiliar para realizar DFS y asegurar un camino valido
+void dfs(int** laberinto, int filas, int columnas, int x, int y) {
     vector<pair<int, int>> movimientos = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
     random_shuffle(movimientos.begin(), movimientos.end());
 
@@ -46,25 +58,31 @@ void dfs(vector<vector<int>>& laberinto, int x, int y) {
         int nx = x + mov.first * 2;
         int ny = y + mov.second * 2;
 
-        if (nx > 0 && nx < static_cast<int>(laberinto.size() - 1) && ny > 0 && ny < static_cast<int>(laberinto[0].size() - 1) && laberinto[nx][ny] == 1) {
+        if (nx > 0 && nx < filas - 1 && ny > 0 && ny < columnas - 1 && laberinto[nx][ny] == 1) {
             laberinto[nx - mov.first][ny - mov.second] = 0;
             laberinto[nx][ny] = 0;
-            dfs(laberinto, nx, ny);
+            dfs(laberinto, filas, columnas, nx, ny);
         }
     }
 }
 
-// Función para generar un laberinto aleatorio
-vector<vector<int>> generarLaberinto(int filas, int columnas) {
+// Funcion para generar un laberinto aleatorio
+int** generarLaberinto(int filas, int columnas) {
     if (filas < 3) filas = 3;
     if (columnas < 3) columnas = 3;
 
-    vector<vector<int>> laberinto(filas, vector<int>(columnas, 1));
+    int** laberinto = new int*[filas];
+    for (int i = 0; i < filas; ++i) {
+        laberinto[i] = new int[columnas];
+        for (int j = 0; j < columnas; ++j) {
+            laberinto[i][j] = 1;
+        }
+    }
 
     srand(time(0));
 
     laberinto[1][1] = 0;
-    dfs(laberinto, 1, 1);
+    dfs(laberinto, filas, columnas, 1, 1);
     
     // Asegurar la entrada y la salida del laberinto
     laberinto[1][0] = 0; // Entrada
@@ -74,8 +92,8 @@ vector<vector<int>> generarLaberinto(int filas, int columnas) {
     return laberinto;
 }
 
-// Función para guardar el laberinto en un archivo con un nombre dado
-void guardarLaberintoEnArchivo(const vector<vector<int>>& laberinto, const string& nombreArchivo) {
+// Funcion para guardar el laberinto en un archivo con un nombre dado
+void guardarLaberintoEnArchivo(int** laberinto, int filas, int columnas, const char* nombreArchivo) {
     ofstream archivo(nombreArchivo);
 
     if (!archivo.is_open()) {
@@ -83,9 +101,9 @@ void guardarLaberintoEnArchivo(const vector<vector<int>>& laberinto, const strin
         return;
     }
 
-    for (const auto& fila : laberinto) {
-        for (const auto& celda : fila) {
-            if (celda == 1)
+    for (int i = 0; i < filas; ++i) {
+        for (int j = 0; j < columnas; ++j) {
+            if (laberinto[i][j] == 1)
                 archivo << "|"; // Paredes
             else
                 archivo << " "; // Caminos
@@ -96,37 +114,41 @@ void guardarLaberintoEnArchivo(const vector<vector<int>>& laberinto, const strin
     archivo.close();
 }
 
-// Función para leer un laberinto desde un archivo
-vector<vector<int>> leerLaberintoDesdeArchivo(const string& nombreArchivo) {
+// Funcion para leer un laberinto desde un archivo
+int** leerLaberintoDesdeArchivo(const char* nombreArchivo, int& filas, int& columnas) {
     ifstream archivo(nombreArchivo);
-    vector<vector<int>> laberinto;
+    vector<string> lineas;
     string linea;
 
     if (!archivo.is_open()) {
         cerr << "Error al abrir el archivo para leer el laberinto." << endl;
-        return laberinto;
+        return nullptr;
     }
 
     while (getline(archivo, linea)) {
-        vector<int> fila;
-        for (char celda : linea) {
-            if (celda == ' ')
-                fila.push_back(0); // Camino (0)
-            else
-                fila.push_back(1); // Pared (1)
-        }
-        laberinto.push_back(fila);
+        lineas.push_back(linea);
     }
 
     archivo.close();
+
+    filas = lineas.size();
+    columnas = lineas[0].length();
+    int** laberinto = new int*[filas];
+    for (int i = 0; i < filas; ++i) {
+        laberinto[i] = new int[columnas];
+        for (int j = 0; j < columnas; ++j) {
+            if (lineas[i][j] == ' ')
+                laberinto[i][j] = 0; // Camino (0)
+            else
+                laberinto[i][j] = 1; // Pared (1)
+        }
+    }
+
     return laberinto;
 }
 
-// Función de backtracking para encontrar un camino desde la entrada a la salida
-bool encontrarCamino(vector<vector<int>>& laberinto, int x, int y, vector<pair<int, int>>& camino, int& totalPasos, int& pasosCorrectos) {
-    int filas = static_cast<int>(laberinto.size());
-    int columnas = static_cast<int>(laberinto[0].size());
-
+// Funcion de backtracking para encontrar un camino desde la entrada a la salida
+bool encontrarCamino(int** laberinto, int filas, int columnas, int x, int y, vector<pair<int, int>>& camino, int& totalPasos, int& pasosCorrectos) {
     if (x == filas - 2 && y == columnas - 1) { // Salida
         camino.push_back({x, y});
         pasosCorrectos++;
@@ -144,17 +166,17 @@ bool encontrarCamino(vector<vector<int>>& laberinto, int x, int y, vector<pair<i
             laberinto[nx][ny] = 2; // Marcar como parte del camino
             camino.push_back({nx, ny});
 
-            totalPasos++; // Contar el paso solo si el movimiento es válido
+            totalPasos++; // Contar el paso solo si el movimiento es valido
 
             // Mostrar movimiento paso a paso
             limpiarPantalla();
-            imprimirLaberinto(laberinto, camino);
-            cout << "Total de pasos (incluyendo intentos erroneos): " << totalPasos << endl;
-            cout << "Total de pasos por el camino correcto: " << pasosCorrectos << endl;
+            imprimirLaberinto(laberinto, filas, columnas, camino);
+            printf("Total de pasos (incluyendo intentos erroneos): %d\n", totalPasos);
+            printf("Total de pasos por el camino correcto: %d\n", pasosCorrectos);
             struct timespec req = {0, 500 * 1000000}; // 500 ms
             nanosleep(&req, nullptr);
 
-            if (encontrarCamino(laberinto, nx, ny, camino, totalPasos, pasosCorrectos)) {
+            if (encontrarCamino(laberinto, filas, columnas, nx, ny, camino, totalPasos, pasosCorrectos)) {
                 pasosCorrectos++; // Contar el paso correcto
                 return true;
             }
@@ -171,43 +193,49 @@ int main() {
     int filas, columnas;
     int opcion;
 
-    cout << "Seleccione una opcion:" << endl;
-    cout << "1. Generar un laberinto aleatorio y guardarlo en un archivo" << endl;
-    cout << "2. Resolver un laberinto desde un archivo" << endl;
-    cin >> opcion;
+    printf("Seleccione una opcion:\n");
+    printf("1. Generar un laberinto aleatorio y guardarlo en un archivo\n");
+    printf("2. Resolver un laberinto desde un archivo\n");
+    scanf("%d", &opcion);
 
     if (opcion == 1) {
-        cout << "Ingrese el numero de filas: ";
-        cin >> filas;
-        cout << "Ingrese el numero de columnas: ";
-        cin >> columnas;
+        printf("Ingrese el numero de filas: ");
+        scanf("%d", &filas);
+        printf("Ingrese el numero de columnas: ");
+        scanf("%d", &columnas);
 
         if (filas < 3 || columnas < 3) {
-            cout << "El numero de filas y columnas debe ser al menos 3 para crear un laberinto valido." << endl;
+            printf("El numero de filas y columnas debe ser al menos 3 para crear un laberinto valido.\n");
             return 1;
         }
 
-        string nombreArchivo;
-        cout << "Ingrese el nombre del archivo donde desea guardar el laberinto: ";
-        cin >> nombreArchivo;
+        char nombreArchivo[100];
+        printf("Ingrese el nombre del archivo donde desea guardar el laberinto: ");
+        scanf("%s", nombreArchivo);
 
-        vector<vector<int>> laberinto = generarLaberinto(filas, columnas);
-        cout << "Laberinto generado:\n";
-        imprimirLaberinto(laberinto, {});
+        int** laberinto = generarLaberinto(filas, columnas);
+        printf("Laberinto generado:\n");
+        vector<pair<int, int>> caminoVacio; // Vector vacio
+        imprimirLaberinto(laberinto, filas, columnas, caminoVacio);
 
         // Guardar el laberinto en un archivo con el nombre especificado
-        guardarLaberintoEnArchivo(laberinto, nombreArchivo);
+        guardarLaberintoEnArchivo(laberinto, filas, columnas, nombreArchivo);
+
+        for (int i = 0; i < filas; ++i) {
+            delete[] laberinto[i];
+        }
+        delete[] laberinto;
 
     } else if (opcion == 2) {
-        string nombreArchivo;
-        cout << "Ingrese el nombre del archivo que contiene el laberinto: ";
-        cin >> nombreArchivo;
+        char nombreArchivo[100];
+        printf("Ingrese el nombre del archivo que contiene el laberinto: ");
+        scanf("%s", nombreArchivo);
 
         // Leer el laberinto desde el archivo
-        vector<vector<int>> laberintoLeido = leerLaberintoDesdeArchivo(nombreArchivo);
+        int** laberintoLeido = leerLaberintoDesdeArchivo(nombreArchivo, filas, columnas);
 
-        if (laberintoLeido.empty()) {
-            cout << "El laberinto no se pudo leer o el archivo esta vacio." << endl;
+        if (laberintoLeido == nullptr) {
+            printf("El laberinto no se pudo leer o el archivo esta vacio.\n");
             return 1;
         }
 
@@ -215,16 +243,21 @@ int main() {
         vector<pair<int, int>> camino;
         int totalPasos = 0;
         int pasosCorrectos = 0;
-        if (encontrarCamino(laberintoLeido, 1, 0, camino, totalPasos, pasosCorrectos)) {
-            cout << "\nSe ha encontrado un camino hacia la salida en el laberinto leido:\n";
-            imprimirLaberinto(laberintoLeido, camino);
-            cout << "Total de pasos (incluyendo intentos erroneos): " << totalPasos << endl;
-            cout << "Total de pasos por el camino correcto: " << pasosCorrectos << endl;
+        if (encontrarCamino(laberintoLeido, filas, columnas, 1, 0, camino, totalPasos, pasosCorrectos)) {
+            printf("\nSe ha encontrado un camino hacia la salida en el laberinto leido:\n");
+            imprimirLaberinto(laberintoLeido, filas, columnas, camino);
+            printf("Total de pasos (incluyendo intentos erroneos): %d\n", totalPasos);
+            printf("Total de pasos por el camino correcto: %d\n", pasosCorrectos);
         } else {
-            cout << "\nNo se encontro un camino hacia la salida en el laberinto leido.\n";
+            printf("\nNo se encontro un camino hacia la salida en el laberinto leido.\n");
         }
+
+        for (int i = 0; i < filas; ++i) {
+            delete[] laberintoLeido[i];
+        }
+        delete[] laberintoLeido;
     } else {
-        cout << "Opcion no valida." << endl;
+        printf("Opcion no valida.\n");
     }
 
     return 0;
